@@ -89,6 +89,15 @@
       </analyzer>
     </fieldType>
 
+    <fieldType name="sort" class="solr.TextField" sortMissingLast="true" omitNorms="false">
+      <analyzer>
+        <tokenizer class="solr.KeywordTokenizerFactory"/>
+        <filter class="solr.LowerCaseFilterFactory" />
+        <filter class="solr.TrimFilterFactory" />
+        <filter class="solr.PatternReplaceFilterFactory" pattern="([^a-z0-9])" replacement="" replace="all"/>
+      </analyzer>
+    </fieldType>
+
     <fieldtype name="text_zh" class="solr.TextField">
       <analyzer class="org.apache.lucene.analysis.cn.ChineseAnalyzer"/>
     </fieldtype>
@@ -114,6 +123,7 @@
    <dynamicField name="*_s_mv" type="string" indexed="true" stored="false" multiValued="true"/>
    <dynamicField name="*_zh_text" type="text_zh" indexed="true" stored="false" multiValued="true"/>
    <dynamicField name="*_display" type="text" indexed="false" stored="true" multiValued="true"/>
+   <dynamicField name="*_sort" type="sort" indexed="true" stored="false"/>
  </fields>
 
  <uniqueKey>id</uniqueKey>

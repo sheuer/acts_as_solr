@@ -136,7 +136,10 @@ module ActsAsSolr #:nodoc:
         process_fields(self.new.attributes.keys.map { |k| k.to_sym })
         process_fields(configuration[:additional_fields])
       end
-
+      
+      if configuration[:sort_fields]
+        process_fields(configuration[:sort_fields].collect {|field| {field => :sort}})
+      end
     end
     
     private

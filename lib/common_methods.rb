@@ -15,6 +15,7 @@ module ActsAsSolr #:nodoc:
           when :range_integer:  return "ri"
           when :facet:          return "facet"
           when :text:           return "t"
+          when :sort:           return "sort"
         else
           raise "Unknown field_type symbol: #{field_type}"
         end
