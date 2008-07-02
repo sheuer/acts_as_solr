@@ -30,14 +30,20 @@ module ActsAsSolr #:nodoc:
         
         if models.nil?
           # TODO: use a filter query for type, allowing Solr to cache it individually
-          models = "AND #{solr_configuration[:type_field]}:#{self.name}"
+          models = "#{solr_configuration[:type_field]}:#{self.name}"
           field_list = solr_configuration[:primary_key_field]
         else
           field_list = "id"
         end
         
         query_options[:field_list] = [field_list, 'score']
-        query = "(#{query.gsub(/ *: */,"_t:")}) #{models}"
+        
+        unless query.nil? || query.empty? || query == '*'
+          query = "(#{query.gsub(/ *: */,"_t:")}) AND #{models}"
+        else
+          query = "#{models}"
+        end
+
         order = options[:order].split(/\s*,\s*/).collect{|e| e.gsub(/\s+/,'_t ').gsub(/\bscore_t\b/, 'score')  }.join(',') if options[:order] 
         query_options[:query] = replace_types([query])[0] # TODO adjust replace_types to work with String or Array  
 

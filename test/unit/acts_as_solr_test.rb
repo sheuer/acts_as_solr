@@ -372,4 +372,18 @@ class ActsAsSolrTest < Test::Unit::TestCase
     movies = Movie.find_by_solr 'time_on_xml:[NOW-1DAY TO NOW]'
     assert_equal 2, movies.total
   end
+  
+  # Ensure solr can handle blank queries
+  def test_find_by_solr_blank_query
+    assert_nothing_raised {
+      Book.find_by_solr('')
+    }
+  end
+  
+  # Ensure solr can handle * queries
+  def test_find_by_solr_blank_query
+    assert_nothing_raised {
+      Book.find_by_solr('*')
+    }
+  end
 end
