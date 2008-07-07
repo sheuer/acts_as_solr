@@ -115,8 +115,9 @@ module ActsAsSolr #:nodoc:
         :boost => nil,
         :if => "true"
       }  
+      
       self.solr_configuration = {
-        :type_field => "type_t",
+        :type_field => "type_s",
         :primary_key_field => "pk_i",
         :default_boost => 1.0
       }
