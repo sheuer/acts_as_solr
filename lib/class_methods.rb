@@ -89,8 +89,8 @@ module ActsAsSolr #:nodoc:
     #                          Where the value of each array is as Model:instance_id
     # 
     def multi_solr_search(query, options = {})
-      models = "(#{solr_configuration[:type_field]}:#{self.name}"
-      options[:models].each{|m| models << " OR type_t:"+m.to_s} if options[:models].is_a?(Array)
+      models = "AND (#{solr_configuration[:type_field]}:#{self.name}"
+      options[:models].each{|m| models << " OR #{solr_configuration[:type_field]}:"+m.to_s} if options[:models].is_a?(Array)
       options.update(:results_format => :objects) unless options[:results_format]
       data = parse_query(query, options, models<<")")
       result = []
