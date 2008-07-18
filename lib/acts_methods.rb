@@ -95,6 +95,7 @@ module ActsAsSolr #:nodoc:
     #                   acts_as_solr :auto_commit => false
     #                 end
     # 
+    
     def acts_as_solr(options={}, solr_options={})
       
       extend ClassMethods
@@ -145,20 +146,22 @@ module ActsAsSolr #:nodoc:
     
     private
     def get_field_value(field)
-      configuration[:solr_fields] << field
-      type  = field.is_a?(Hash) ? field.values[0] : nil
-      field = field.is_a?(Hash) ? field.keys[0] : field
-      define_method("#{field}_for_solr".to_sym) do
+      # normalized format: [:field_name, {:type => whatever, :boost => :whatever}]
+      options = normalize_field_options(field)
+      configuration[:solr_fields] << options
+      field_name = options.first
+      
+      define_method("#{field_name}_for_solr".to_sym) do
         begin
-          value = self[field] || self.instance_variable_get("@#{field.to_s}".to_sym) || self.send(field.to_sym)
-          case type 
+          value = self[field_name] || self.instance_variable_get("@#{field_name.to_s}".to_sym) || self.send(field_name.to_sym)
+          case options.last[:type] 
             # format dates properly; return nil for nil dates 
             when :date: value ? value.utc.strftime("%Y-%m-%dT%H:%M:%SZ") : nil 
             else value
           end
         rescue
           value = ''
-          logger.debug "There was a problem getting the value for the field '#{field}': #{$!}"
+          logger.debug "There was a problem getting the value for the field '#{field_name}': #{$!}"
         end
       end
     end
@@ -172,5 +175,33 @@ module ActsAsSolr #:nodoc:
       end
     end
     
+    def type_for_field(field)
+      if configuration[:facets] && configuration[:facets].include?(field)
+        :facet
+      elsif column = columns_hash[field.to_s]
+        case column.type
+        when :string then :text
+        when :datetime then :date
+        when :time then :date
+        else column.type
+        end
+      else
+        :text
+      end
+    end
+    
+    def normalize_field_options(field)
+      if field.is_a?(Hash)
+        name = field.keys.first
+        options = field.values.first
+        if options.is_a?(Hash)
+          [name, {:type => type_for_field(field)}.merge(options)]
+        else
+          [name, {:type => options}]
+        end
+      else
+        [field, {:type => type_for_field(field)}]
+      end
+  	end
   end
 end
