@@ -1,5 +1,7 @@
 module ActsAsSolr #:nodoc:
+  
   module ParserMethods
+    
     protected    
     
     # Method used by mostly all the ClassMethods when doing a search
@@ -28,14 +30,20 @@ module ActsAsSolr #:nodoc:
         
         if models.nil?
           # TODO: use a filter query for type, allowing Solr to cache it individually
-          models = "AND #{solr_type_condition}"
+          models = "#{solr_type_condition}"
           field_list = solr_configuration[:primary_key_field]
         else
           field_list = "id"
         end
         
         query_options[:field_list] = [field_list, 'score']
-        query = "(#{query.gsub(/ *: */,"_t:")}) #{models}"
+        
+        unless query.nil? || query.empty? || query == '*'
+          query = "(#{query.gsub(/ *: */,"_t:")}) AND #{models}"
+        else
+          query = "#{models}"
+        end
+
         order = options[:order].split(/\s*,\s*/).collect{|e| e.gsub(/\s+/,'_t ').gsub(/\bscore_t\b/, 'score')  }.join(',') if options[:order] 
         query_options[:query] = replace_types([query])[0] # TODO adjust replace_types to work with String or Array  
 
@@ -43,7 +51,7 @@ module ActsAsSolr #:nodoc:
           # TODO: set the sort parameter instead of the old ;order. style.
           query_options[:query] << ';' << replace_types([order], false)[0]
         end
-        
+               
         ActsAsSolr::Post.execute(Solr::Request::Standard.new(query_options))
       rescue
         raise "There was a problem executing your search: #{$!}"
@@ -55,7 +63,7 @@ module ActsAsSolr #:nodoc:
         condition << " OR #{solr_configuration[:type_field]}:#{subclass.name}"
       end << ')'
     end
-    
+   
     # Parses the data returned from Solr
     def parse_results(solr_data, options = {})
       results = {
@@ -117,4 +125,5 @@ module ActsAsSolr #:nodoc:
       end
     end
   end
+
 end

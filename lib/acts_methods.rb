@@ -95,6 +95,7 @@ module ActsAsSolr #:nodoc:
     #                   acts_as_solr :auto_commit => false
     #                 end
     # 
+    
     def acts_as_solr(options={}, solr_options={})
       
       extend ClassMethods
@@ -115,6 +116,7 @@ module ActsAsSolr #:nodoc:
         :boost => nil,
         :if => "true"
       }  
+      
       self.solr_configuration = {
         :type_field => "type_s",
         :primary_key_field => "pk_i",
@@ -125,7 +127,7 @@ module ActsAsSolr #:nodoc:
       solr_configuration.update(solr_options) if solr_options.is_a?(Hash)
       Deprecation.validate_index(configuration)
       
-      configuration[:solr_fields] = {}
+      configuration[:solr_fields] = []
       
       after_save    :solr_save
       after_destroy :solr_destroy
@@ -136,17 +138,23 @@ module ActsAsSolr #:nodoc:
         process_fields(self.new.attributes.keys.map { |k| k.to_sym })
         process_fields(configuration[:additional_fields])
       end
+      
+      if configuration[:sort_fields]
+        process_fields(configuration[:sort_fields].collect {|field| {field => :sort}})
+      end
     end
     
     private
     def get_field_value(field)
-      field_name, options = determine_field_name_and_options(field)
-      configuration[:solr_fields][field_name] = options
+      # normalized format: [:field_name, {:type => whatever, :boost => :whatever}]
+      options = normalize_field_options(field)
+      configuration[:solr_fields] << options
+      field_name = options.first
       
       define_method("#{field_name}_for_solr".to_sym) do
         begin
           value = self[field_name] || self.instance_variable_get("@#{field_name.to_s}".to_sym) || self.send(field_name.to_sym)
-          case options[:type] 
+          case options.last[:type] 
             # format dates properly; return nil for nil dates 
             when :date: value ? value.utc.strftime("%Y-%m-%dT%H:%M:%SZ") : nil 
             else value
@@ -167,20 +175,6 @@ module ActsAsSolr #:nodoc:
       end
     end
     
-    def determine_field_name_and_options(field)
-      if field.is_a?(Hash)
-        name = field.keys.first
-        options = field.values.first
-        if options.is_a?(Hash)
-          [name, {:type => type_for_field(field)}.merge(options)]
-        else
-          [name, {:type => options}]
-        end
-      else
-        [field, {:type => type_for_field(field)}]
-      end
-    end
-    
     def type_for_field(field)
       if configuration[:facets] && configuration[:facets].include?(field)
         :facet
@@ -195,5 +189,19 @@ module ActsAsSolr #:nodoc:
         :text
       end
     end
+    
+    def normalize_field_options(field)
+      if field.is_a?(Hash)
+        name = field.keys.first
+        options = field.values.first
+        if options.is_a?(Hash)
+          [name, {:type => type_for_field(field)}.merge(options)]
+        else
+          [name, {:type => options}]
+        end
+      else
+        [field, {:type => type_for_field(field)}]
+      end
+  	end
   end
 end

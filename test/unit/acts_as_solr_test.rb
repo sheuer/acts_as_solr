@@ -3,7 +3,7 @@ require "#{File.dirname(File.expand_path(__FILE__))}/../test_helper"
 class ActsAsSolrTest < Test::Unit::TestCase
   
   fixtures :books, :movies, :electronics, :postings, :authors
-
+  
   # Inserting new data into Solr and making sure it's getting indexed
   def test_insert_new_data
     assert_equal 2, Book.count_by_solr('ruby OR splinter OR bob')
@@ -25,9 +25,9 @@ class ActsAsSolrTest < Test::Unit::TestCase
   end
 
   def test_type_determined_from_database_if_not_explicitly_set
-    assert Post.configuration[:solr_fields][:posted_at][:type] == :date
+    assert Post.configuration[:solr_fields].detect{|x| x.first == :posted_at}.last[:type] == :date
   end
-  
+  		  
   def test_search_includes_subclasses
     Novel.create! :name => 'Wuthering Heights', :author => 'Emily Bronte'
     Book.create! :name => 'Jane Eyre', :author => 'Charlotte Bronte'
@@ -396,5 +396,19 @@ class ActsAsSolrTest < Test::Unit::TestCase
   def test_indexed_date_field_format
     movies = Movie.find_by_solr 'time_on_xml:[NOW-1DAY TO NOW]'
     assert_equal 2, movies.total
+  end
+  
+  # Ensure solr can handle blank queries
+  def test_find_by_solr_blank_query
+    assert_nothing_raised {
+      Book.find_by_solr('')
+    }
+  end
+  
+  # Ensure solr can handle * queries
+  def test_find_by_solr_starred_query
+    assert_nothing_raised {
+      Book.find_by_solr('*')
+    }
   end
 end
