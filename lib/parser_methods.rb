@@ -6,10 +6,11 @@ module ActsAsSolr #:nodoc:
     
     # Method used by mostly all the ClassMethods when doing a search
     def parse_query(query=nil, options={}, models=nil)
+      options = options.symbolize_keys
       valid_options = [:offset, :limit, :facets, :models, :results_format, :order, :scores, :operator]
       query_options = {}
       return if query.nil?
-      raise "Invalid parameters: #{(options.keys - valid_options).join(',')}" unless (options.keys - valid_options).empty?
+      raise "Invalid parameters: #{(options.keys - valid_options).map(&:inspect).join(',')}" unless (options.keys - valid_options).empty?
       begin
         Deprecation.validate_query(options)
         query_options[:start] = options[:offset]
@@ -43,6 +44,7 @@ module ActsAsSolr #:nodoc:
         else
           query = "#{models}"
         end
+        logger.debug "SOLR query: #{query.inspect}"
 
         order = options[:order].split(/\s*,\s*/).collect{|e| e.gsub(/\s+/,'_t ').gsub(/\bscore_t\b/, 'score')  }.join(',') if options[:order] 
         query_options[:query] = replace_types([query])[0] # TODO adjust replace_types to work with String or Array  
