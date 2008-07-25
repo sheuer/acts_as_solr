@@ -11,6 +11,7 @@ module ActsAsSolr #:nodoc:
       query_options = {}
       return if query.nil?
       raise "Invalid parameters: #{(options.keys - valid_options).map(&:inspect).join(',')}" unless (options.keys - valid_options).empty?
+
       begin
         Deprecation.validate_query(options)
         query_options[:start] = options[:offset]
@@ -44,6 +45,7 @@ module ActsAsSolr #:nodoc:
         else
           query = "#{models}"
         end
+
         logger.debug "SOLR query: #{query.inspect}"
 
         order = options[:order].split(/\s*,\s*/).collect{|e| e.gsub(/\s+/,'_t ').gsub(/\bscore_t\b/, 'score')  }.join(',') if options[:order] 
