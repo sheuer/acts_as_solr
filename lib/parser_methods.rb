@@ -7,7 +7,7 @@ module ActsAsSolr #:nodoc:
     # Method used by mostly all the ClassMethods when doing a search
     def parse_query(query=nil, options={}, models=nil)
       options = options.symbolize_keys
-      valid_options = [:offset, :limit, :facets, :models, :results_format, :order, :scores, :operator]
+      valid_options = [:offset, :limit, :facets, :models, :results_format, :order, :scores, :operator, :include]
       query_options = {}
       return if query.nil?
       raise "Invalid parameters: #{(options.keys - valid_options).map(&:inspect).join(',')}" unless (options.keys - valid_options).empty?
@@ -70,6 +70,7 @@ module ActsAsSolr #:nodoc:
    
     # Parses the data returned from Solr
     def parse_results(solr_data, options = {})
+      find_options = options.slice(:include)
       results = {
         :docs => [],
         :total => 0
@@ -84,7 +85,7 @@ module ActsAsSolr #:nodoc:
 
       ids = solr_data.docs.collect {|doc| doc["#{solr_configuration[:primary_key_field]}"]}.flatten
       conditions = [ "#{self.table_name}.#{primary_key} in (?)", ids ]
-      result = configuration[:format] == :objects ? reorder(self.find(:all, :conditions => conditions), ids) : ids
+      result = configuration[:format] == :objects ? reorder(self.find(:all, find_options.merge(:conditions => conditions)), ids) : ids
       add_scores(result, solr_data) if configuration[:format] == :objects && options[:scores]
       
       results.update(:facets => solr_data.data['facet_counts']) if options[:facets]
@@ -97,8 +98,13 @@ module ActsAsSolr #:nodoc:
       ordered_things = []
       ids.each do |id|
         record = things.find {|thing| record_id(thing).to_s == id.to_s} 
-        raise "Out of sync! The id #{id} is in the Solr index but missing in the database!" unless record
-        ordered_things << record
+        if record
+          ordered_things << record
+        else
+          # this should fail silently?
+          # logger.error("SOLR index Out of sync! The id #{id} is in the Solr index but missing in the database!")
+          raise("Out of sync! The id #{id} is in the Solr index but missing in the database!")
+        end
       end
       ordered_things
     end

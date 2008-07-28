@@ -37,6 +37,14 @@ class ActsAsSolrTest < Test::Unit::TestCase
     assert_equal 1, Novel.find_by_solr('Bronte').total_hits
     assert_equal 2, Book.find_by_solr('Bronte').total_hits
   end
+  
+  def test_search_uses_a_given_include
+    book = Book.create! :name => 'Pragmatic Debugging', :author => 'Paul Butcher'
+    Book.expects(:find).with(:all, :conditions => ['books.id in (?)', [book.id]], :include => :category).returns([book])
+    
+    assert_equal [book], Book.find_by_solr('Pragmatic Debugging', :include => :category).docs
+
+  end
 
   # Testing basic solr search:
   #  Model.find_by_solr 'term'
