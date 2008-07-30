@@ -1,5 +1,8 @@
 require "#{File.dirname(File.expand_path(__FILE__))}/../test_helper"
 
+class Encyclopedia < Book
+end
+
 class ActsAsSolrTest < Test::Unit::TestCase
   
   fixtures :books, :movies, :electronics, :postings, :authors
@@ -48,7 +51,8 @@ class ActsAsSolrTest < Test::Unit::TestCase
       assert_equal ({"id" => 2, 
                       "category_id" => 2, 
                       "name" => "Ruby for Dummies", 
-                      "author" => "Peter McPeterson", "type" => nil}), records.docs.first.attributes
+                      "author" => "Peter McPeterson",
+                      "type" => nil}), records.docs.first.attributes
     end
   end
   
@@ -410,5 +414,17 @@ class ActsAsSolrTest < Test::Unit::TestCase
     assert_nothing_raised {
       Book.find_by_solr('*')
     }
+  end
+  
+  def test_for_solr_method_not_generated_if_one_already_exists
+    Encyclopedia.module_eval do
+      def name_for_solr
+        "Novella: #{self.name}"
+      end
+    end
+    
+    assert_equal "Novella: Something Short", Encyclopedia.new(:name => "Something Short").name_for_solr
+    Encyclopedia.acts_as_solr
+    assert_equal "Novella: Something Short", Encyclopedia.new(:name => "Something Short").name_for_solr 
   end
 end
