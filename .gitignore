@@ -1,3 +1,5 @@
 debug.log
 solr/solr/data
-test/db/*.db
+.svn
+test/db/test.db
+
