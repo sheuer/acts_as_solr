@@ -32,7 +32,6 @@ require File.dirname(__FILE__) + '/deprecation'
 require File.dirname(__FILE__) + '/search_results'
 
 module ActsAsSolr
-  
   class Post    
     def self.execute(request)
       begin
@@ -42,7 +41,7 @@ module ActsAsSolr
           # for backwards compatibility
           url ||= "http://#{config[RAILS_ENV]['host']}:#{config[RAILS_ENV]['port']}/#{config[RAILS_ENV]['servlet_path']}"
         else
-          url = 'http://localhost:8982/solr'
+          url = "http://localhost:8982/solr"
         end
         connection = Solr::Connection.new(url)
         return connection.send(request)
@@ -52,8 +51,9 @@ module ActsAsSolr
       end
     end
   end
-  
 end
 
 # reopen ActiveRecord and include the acts_as_solr method
 ActiveRecord::Base.extend ActsAsSolr::ActsMethods
+
+require 'acts_as_solr/indexed_at_stamp'
