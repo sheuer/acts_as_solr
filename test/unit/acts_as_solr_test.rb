@@ -1,6 +1,7 @@
 require "#{File.dirname(File.expand_path(__FILE__))}/../test_helper"
 
-class Encyclopedia < Book
+class Encyclopedia < ActiveRecord::Base
+  set_table_name :books
 end
 
 class ActsAsSolrTest < Test::Unit::TestCase
@@ -323,11 +324,12 @@ class ActsAsSolrTest < Test::Unit::TestCase
   def test_find_by_solr_with_score
     books = Book.find_by_solr 'ruby^10 OR splinter', :scores => true
     assert_equal 2, books.total
-    assert_equal 0.41763234, books.max_score
+    assert_equal books.max_score, books.docs.collect(&:solr_score).max
     
-    books.records.each { |book| assert_not_nil book.solr_score }
-    assert_equal 0.41763234, books.docs.first.solr_score
-    assert_equal 0.14354616, books.docs.last.solr_score
+    books.records.each do |book|
+      assert_kind_of Numeric, book.solr_score
+      assert_operator 0, :<, book.solr_score
+    end
   end
   
   # Making sure nothing breaks when html entities are inside
@@ -397,11 +399,10 @@ class ActsAsSolrTest < Test::Unit::TestCase
   def test_find_by_solr_order_by_score
     books = Book.find_by_solr 'ruby^10 OR splinter', {:scores => true, :order => 'score asc' }
     assert (books.docs.collect(&:solr_score).compact.size == books.docs.size), "Each book should have a score"
-    assert_equal 0.41763234, books.docs.last.solr_score
+    assert books.docs.last.solr_score > books.docs.first.solr_score
     
     books = Book.find_by_solr 'ruby^10 OR splinter', {:scores => true, :order => 'score desc' }
-    assert_equal 0.41763234, books.docs.first.solr_score
-    assert_equal 0.14354616, books.docs.last.solr_score
+    assert books.docs.last.solr_score < books.docs.first.solr_score
   end
   
   # Search based on fields with the :date format
