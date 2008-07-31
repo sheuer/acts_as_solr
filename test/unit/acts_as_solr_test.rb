@@ -224,7 +224,7 @@ class ActsAsSolrTest < Test::Unit::TestCase
   end
   
   # Testing solr search with optional :order argument
-  def _test_with_order_option
+  def test_with_order_option
     records = Movie.find_by_solr 'office^5 OR goofiness'
     assert_equal 'Hypnotized dude loves fishing but not working', records.docs.first.description
     assert_equal 'Cool movie about a goofy guy', records.docs.last.description
