@@ -88,6 +88,22 @@ module ActsAsSolr #:nodoc:
       result = configuration[:format] == :objects ? reorder(self.find(:all, find_options.merge(:conditions => conditions)), ids) : ids
       add_scores(result, solr_data) if configuration[:format] == :objects && options[:scores]
       
+      # added due to change for solr 1.3 ruby return struct for facet_fields is an array not hash
+      if options[:facets] && !solr_data.data['facet_counts']['facet_fields'].empty?
+        facet_fields = solr_data.data['facet_counts']['facet_fields']
+        solr_data.data['facet_counts']['facet_fields'] = {}
+        facet_fields.each do |name, values|
+          solr_data.data['facet_counts']['facet_fields'][name] = {}
+          values.length.times do | a |
+            if a.odd?
+              solr_data.data['facet_counts']['facet_fields'][name][values[a-1]] = values[a]
+            else
+              solr_data.data['facet_counts']['facet_fields'][name][values[a]]
+            end
+          end    
+        end
+      end
+      
       results.update(:facets => solr_data.data['facet_counts']) if options[:facets]
       results.update({:docs => result, :total => solr_data.total, :max_score => solr_data.max_score})
       SearchResults.new(results)
