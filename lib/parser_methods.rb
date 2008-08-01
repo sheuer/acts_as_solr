@@ -41,17 +41,18 @@ module ActsAsSolr #:nodoc:
         query_options[:field_list] = [field_list, 'score']
         
         unless query.nil? || query.empty? || query == '*'
-          query = "(#{query.gsub(/ *: */,"_t:")}) AND #{models}"
+          query = "(#{map_query_to_fields(query)}) AND #{models}"
         else
           query = "#{models}"
         end
+        query_options[:query] = query
 
         logger.debug "SOLR query: #{query.inspect}"
 
         order = map_order_to_fields(options[:order]) if options[:order]
-        query_options[:query] = replace_types([query])[0] # TODO adjust replace_types to work with String or Array  
-
-        if options[:order]
+ 
+        unless options[:order].blank?
+          order = map_order_to_fields(options[:order])
           query_options[:query] << ';' << order
         end
                
@@ -59,6 +60,18 @@ module ActsAsSolr #:nodoc:
       rescue
         raise "There was a problem executing your search: #{$!}"
       end            
+    end
+    
+    # map index fields to the appropriate lucene_fields
+    # "title:(a fish in my head)" => "title_t:(a fish in my head)"
+    # it should avoid mapping to _sort fields
+    def map_query_to_fields(query)
+      #{query.gsub(/ *: */,"_t:")}
+      query.gsub(/(\w+)\s*:\s*/) do |match| # sets $1 in the block
+        field_name = $1
+        field_name = field_name_to_lucene_field(field_name)
+        "#{field_name}:"
+      end
     end
     
     def map_order_to_fields(string)

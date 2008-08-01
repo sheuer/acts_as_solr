@@ -268,15 +268,11 @@ class ActsAsSolrTest < Test::Unit::TestCase
   # Testing the :exclude_fields option when set in the
   # model to make sure it doesn't get indexed
   def test_exclude_fields_option
+    assert_operator 0, :<, Electronic.count(:conditions => "features LIKE '%audiobooks%' OR features LIKE '%latency%'")
+  
     records = Electronic.find_by_solr 'audiobooks OR latency'
     assert records.docs.empty?
     assert_equal 0, records.total
-  
-    assert_nothing_raised{
-      records = Electronic.find_by_solr 'features:audiobooks'
-      assert records.docs.empty?
-      assert_equal 0, records.total
-    }
   end
   
   # Testing the :auto_commit option set to false in the model

@@ -1,6 +1,50 @@
 require File.dirname(__FILE__) + '/../spec_helper'
 
 describe ActsAsSolr::ParserMethods do
+  describe "#map_query_to_fields" do
+    before(:each) do
+      Book.should respond_to(:configuration) # safe stub!
+      Book.stub!(:configuration).and_return(
+        :solr_fields => [
+          [:id,     {:type => :integer}],
+          [:title,  {:type => :sort}],
+          [:title,  {:type => :string}],
+          ["title", {:type => :text}], # chuck in a string
+          [:created_at, {:type => :date}],
+          [:score,  {:type => :text}], # chuck this into the mix
+        ])
+    end
+    
+    def map(query)
+      Book.send(:map_query_to_fields, query)
+    end
+    
+    it "should map each supplied field to its indexed equivalent" do
+      rtn = map("a normal keyword AND title:(something titleish) AND created_at:(200707010000)")
+      rtn.should == "a normal keyword AND title_s:(something titleish) AND created_at_d:(200707010000)"
+    end
+ 
+    it "should favour :string or :text fields" do
+      rtn = map("title:(ish)")
+      rtn.should == "title_s:(ish)"
+    end
+    
+    it "should eliminate whitespace around the ':'" do
+      rtn = map(" some keyword stuff AND   title    :  a clause  AND   title     :  (another)  ")
+      rtn.should == " some keyword stuff AND   title_s:a clause  AND   title_s:(another)  "
+    end
+    
+    it "should not alter instances of field names elsewhere in the query" do
+      rtn = map("    title   title   AND title OR title : title title AND title:( title title) title")
+      rtn.should == "    title   title   AND title OR title_s:title title AND title_s:( title title) title"
+    end
+    
+    it "should work with field_names featuring an '_'" do
+      rtn = map("created_at : (200707010000)")
+      rtn.should == "created_at_d:(200707010000)"
+    end
+  end
+  
   describe "#map_order_to_fields" do
     before(:each) do
       Book.should respond_to(:configuration) # safe stub!
@@ -138,6 +182,12 @@ describe ActsAsSolr::ParserMethods do
       Book.should_receive(:solr_field_to_lucene_field).with("join").and_return("together")
       
       Book.send(:field_name_to_lucene_field, "some", :input).should == "together"
+    end
+    
+    it "should default to prefering :string and :text" do
+      Book.should_receive(:field_name_to_solr_field).with("something", [:string, :text]).and_return([:title, {:type => :string}])
+      
+      Book.send(:field_name_to_lucene_field, "something").should == "title_s"
     end
     
     it "should return just the field name if there is no matching solr_field" do
