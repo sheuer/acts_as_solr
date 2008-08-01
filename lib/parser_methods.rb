@@ -142,6 +142,39 @@ module ActsAsSolr #:nodoc:
       strings
     end
     
+    # looks through the configured :solr_fields, and chooses the most appropriate
+    # pass it :sort if you would prefer a :sort_field
+    # or pass it :text if that's your prefered type
+    def field_name_to_solr_field(field_name, favoured_types=nil)
+      favoured_types = Array(favoured_types)
+      
+      solr_fields = configuration[:solr_fields].select do |field, options|
+        field.to_s == field_name.to_s
+      end
+      prefered, secondary = solr_fields.partition do |field, options|
+        favoured_types.include?(options[:type])
+      end
+      prefered.first || secondary.first # will return nil if no matches
+    end
+    
+    # takes a normalized field... ie. [:field, {:type => :text}]
+    # gets us the lucene field name "field_t"
+    def solr_field_to_lucene_field(normalized_field)
+      field_name, options = normalized_field
+      field_type = options[:type]
+      "#{field_name}_#{get_solr_field_type(field_type)}"
+    end
+    
+    # "title" => "title_t", or "title_sort"
+    # "score" => "score" -- SPECIAL CASE
+    def field_name_to_lucene_field(field_name, favoured_types=[:string, :text])
+      if normalized_field = field_name_to_solr_field(field_name, favoured_types)
+        solr_field_to_lucene_field(normalized_field)
+      else
+        field_name.to_s
+      end
+    end
+    
     # Adds the score to each one of the instances found
     def add_scores(results, solr_data)
       with_score = []
