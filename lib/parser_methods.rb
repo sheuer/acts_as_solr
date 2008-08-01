@@ -48,7 +48,7 @@ module ActsAsSolr #:nodoc:
 
         logger.debug "SOLR query: #{query.inspect}"
 
-        order = options[:order].split(/\s*,\s*/).collect{|e| e.gsub(/\s+/,'_t ').gsub(/\bscore_t\b/, 'score')  }.join(',') if options[:order] 
+        order = map_order_to_fields(options[:order]) if options[:order]
         query_options[:query] = replace_types([query])[0] # TODO adjust replace_types to work with String or Array  
 
         if options[:order]
@@ -62,6 +62,10 @@ module ActsAsSolr #:nodoc:
       end            
     end
     
+    def map_order_to_fields(string)
+      order = string.split(/\s*,\s*/).collect{|e| e.gsub(/\s+/,'_t ').gsub(/\bscore_t\b/, 'score')  }.join(',')
+    end
+      
     def solr_type_condition
       subclasses.inject("(#{solr_configuration[:type_field]}:#{self.name}") do |condition, subclass|
         condition << " OR #{solr_configuration[:type_field]}:#{subclass.name}"
