@@ -52,8 +52,7 @@ module ActsAsSolr #:nodoc:
         query_options[:query] = replace_types([query])[0] # TODO adjust replace_types to work with String or Array  
 
         if options[:order]
-          # TODO: set the sort parameter instead of the old ;order. style.
-          query_options[:query] << ';' << replace_types([order], false)[0]
+          query_options[:query] << ';' << order
         end
                
         ActsAsSolr::Post.execute(Solr::Request::Standard.new(query_options))
@@ -63,7 +62,13 @@ module ActsAsSolr #:nodoc:
     end
     
     def map_order_to_fields(string)
-      order = string.split(/\s*,\s*/).collect{|e| e.gsub(/\s+/,'_t ').gsub(/\bscore_t\b/, 'score')  }.join(',')
+      string.split(",").map do |clause|
+        field_name, direction = clause.strip.split(/\s+/)
+        field_name = field_name_to_lucene_field(field_name, :sort) unless field_name == "score"
+        direction ||= "asc"
+        
+        "#{field_name} #{direction.downcase}"
+      end.join(",")
     end
       
     def solr_type_condition

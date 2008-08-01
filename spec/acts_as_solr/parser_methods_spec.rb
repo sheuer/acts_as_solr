@@ -1,6 +1,51 @@
 require File.dirname(__FILE__) + '/../spec_helper'
 
 describe ActsAsSolr::ParserMethods do
+  describe "#map_order_to_fields" do
+    before(:each) do
+      Book.should respond_to(:configuration) # safe stub!
+      Book.stub!(:configuration).and_return(
+        :solr_fields => [
+          [:id,     {:type => :integer}],
+          [:title,  {:type => :string}],
+          ["title", {:type => :text}], # chuck in a string
+          [:title,  {:type => :sort}],
+          [:created_at, {:type => :date}],
+          [:score,  {:type => :text}], # chuck this into the mix
+        ])
+    end
+    
+    it "should map each supplied field to its indexed equivalent" do
+      rtn = Book.send(:map_order_to_fields, "id asc, created_at desc")
+      rtn.should == "id_i asc,created_at_d desc"
+    end
+    
+    it "should leave score intact" do
+      rtn = Book.send(:map_order_to_fields, "score asc")
+      rtn.should == "score asc"
+    end
+    
+    it "should favour :sort fields" do
+      rtn = Book.send(:map_order_to_fields, "title desc")
+      rtn.should == "title_sort desc"
+    end
+    
+    it "should lowercase any provided directions" do
+      rtn = Book.send(:map_order_to_fields, "one_way ASC, other_way DESC")
+      rtn.should == "one_way asc,other_way desc"
+    end
+    
+    it "should append an 'asc' to any non directed field" do
+      rtn = Book.send(:map_order_to_fields, "missing , the, direction")
+      rtn.should == "missing asc,the asc,direction asc"
+    end
+    
+    it "should clear excess white space" do
+      rtn = Book.send(:map_order_to_fields, " something    asc  ,  too_open    ")
+      rtn.should == "something asc,too_open asc"
+    end
+  end
+    
   describe "#field_name_to_solr_field" do
     describe "(with stubs)" do
       before(:each) do
