@@ -49,8 +49,6 @@ module ActsAsSolr #:nodoc:
 
         logger.debug "SOLR query: #{query.inspect}"
 
-        order = map_order_to_fields(options[:order]) if options[:order]
- 
         unless options[:order].blank?
           order = map_order_to_fields(options[:order])
           query_options[:query] << ';' << order
