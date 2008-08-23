@@ -157,7 +157,7 @@ module ActsAsSolr #:nodoc:
 
           case options.last[:type] 
             # format dates properly; return nil for nil dates 
-            when :date: value ? value.utc.strftime("%Y-%m-%dT%H:%M:%SZ") : nil 
+            when :date: value ? value.to_time.utc.strftime("%Y-%m-%dT%H:%M:%SZ") : nil 
             else value
           end
         end
