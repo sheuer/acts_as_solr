@@ -1,9 +1,13 @@
 require "#{File.dirname(File.expand_path(__FILE__))}/../test_helper"
 
+class Encyclopedia < ActiveRecord::Base
+  set_table_name :books
+end
+
 class ActsAsSolrTest < Test::Unit::TestCase
   
   fixtures :books, :movies, :electronics, :postings, :authors
-
+  
   # Inserting new data into Solr and making sure it's getting indexed
   def test_insert_new_data
     assert_equal 2, Book.count_by_solr('ruby OR splinter OR bob')
@@ -25,14 +29,22 @@ class ActsAsSolrTest < Test::Unit::TestCase
   end
 
   def test_type_determined_from_database_if_not_explicitly_set
-    assert Post.configuration[:solr_fields][:posted_at][:type] == :date
+    assert Post.configuration[:solr_fields].detect{|x| x.first == :posted_at}.last[:type] == :date
   end
-  
+  		  
   def test_search_includes_subclasses
     Novel.create! :name => 'Wuthering Heights', :author => 'Emily Bronte'
     Book.create! :name => 'Jane Eyre', :author => 'Charlotte Bronte'
     assert_equal 1, Novel.find_by_solr('Bronte').total_hits
     assert_equal 2, Book.find_by_solr('Bronte').total_hits
+  end
+  
+  def test_search_uses_a_given_include
+    book = Book.create! :name => 'Pragmatic Debugging', :author => 'Paul Butcher'
+    Book.expects(:find).with(:all, :conditions => ['books.id in (?)', [book.id]], :include => :category).returns([book])
+    
+    assert_equal [book], Book.find_by_solr('Pragmatic Debugging', :include => :category).docs
+
   end
 
   # Testing basic solr search:
@@ -48,7 +60,8 @@ class ActsAsSolrTest < Test::Unit::TestCase
       assert_equal ({"id" => 2, 
                       "category_id" => 2, 
                       "name" => "Ruby for Dummies", 
-                      "author" => "Peter McPeterson", "type" => nil}), records.docs.first.attributes
+                      "author" => "Peter McPeterson",
+                      "type" => nil}), records.docs.first.attributes
     end
   end
   
@@ -211,7 +224,7 @@ class ActsAsSolrTest < Test::Unit::TestCase
   end
   
   # Testing solr search with optional :order argument
-  def _test_with_order_option
+  def test_with_order_option
     records = Movie.find_by_solr 'office^5 OR goofiness'
     assert_equal 'Hypnotized dude loves fishing but not working', records.docs.first.description
     assert_equal 'Cool movie about a goofy guy', records.docs.last.description
@@ -255,15 +268,11 @@ class ActsAsSolrTest < Test::Unit::TestCase
   # Testing the :exclude_fields option when set in the
   # model to make sure it doesn't get indexed
   def test_exclude_fields_option
+    assert_operator 0, :<, Electronic.count(:conditions => "features LIKE '%audiobooks%' OR features LIKE '%latency%'")
+  
     records = Electronic.find_by_solr 'audiobooks OR latency'
     assert records.docs.empty?
     assert_equal 0, records.total
-  
-    assert_nothing_raised{
-      records = Electronic.find_by_solr 'features:audiobooks'
-      assert records.docs.empty?
-      assert_equal 0, records.total
-    }
   end
   
   # Testing the :auto_commit option set to false in the model
@@ -311,11 +320,12 @@ class ActsAsSolrTest < Test::Unit::TestCase
   def test_find_by_solr_with_score
     books = Book.find_by_solr 'ruby^10 OR splinter', :scores => true
     assert_equal 2, books.total
-    assert_equal 0.41763234, books.max_score
+    assert_equal books.max_score, books.docs.collect(&:solr_score).max
     
-    books.records.each { |book| assert_not_nil book.solr_score }
-    assert_equal 0.41763234, books.docs.first.solr_score
-    assert_equal 0.14354616, books.docs.last.solr_score
+    books.records.each do |book|
+      assert_kind_of Numeric, book.solr_score
+      assert_operator 0, :<, book.solr_score
+    end
   end
   
   # Making sure nothing breaks when html entities are inside
@@ -385,11 +395,10 @@ class ActsAsSolrTest < Test::Unit::TestCase
   def test_find_by_solr_order_by_score
     books = Book.find_by_solr 'ruby^10 OR splinter', {:scores => true, :order => 'score asc' }
     assert (books.docs.collect(&:solr_score).compact.size == books.docs.size), "Each book should have a score"
-    assert_equal 0.41763234, books.docs.last.solr_score
+    assert books.docs.last.solr_score > books.docs.first.solr_score
     
     books = Book.find_by_solr 'ruby^10 OR splinter', {:scores => true, :order => 'score desc' }
-    assert_equal 0.41763234, books.docs.first.solr_score
-    assert_equal 0.14354616, books.docs.last.solr_score
+    assert books.docs.last.solr_score < books.docs.first.solr_score
   end
   
   # Search based on fields with the :date format
@@ -402,5 +411,31 @@ class ActsAsSolrTest < Test::Unit::TestCase
     results = Book.find_by_solr('ruby')
     assert_not_nil(results.query_time)
     assert_equal(results.query_time.class,Fixnum)
+  end
+  
+  # Ensure solr can handle blank queries
+  def test_find_by_solr_blank_query
+    assert_nothing_raised {
+      Book.find_by_solr('')
+    }
+  end
+  
+  # Ensure solr can handle * queries
+  def test_find_by_solr_starred_query
+    assert_nothing_raised {
+      Book.find_by_solr('*')
+    }
+  end
+  
+  def test_for_solr_method_not_generated_if_one_already_exists
+    Encyclopedia.module_eval do
+      def name_for_solr
+        "Novella: #{self.name}"
+      end
+    end
+    
+    assert_equal "Novella: Something Short", Encyclopedia.new(:name => "Something Short").name_for_solr
+    Encyclopedia.acts_as_solr
+    assert_equal "Novella: Something Short", Encyclopedia.new(:name => "Something Short").name_for_solr 
   end
 end

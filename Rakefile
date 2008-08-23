@@ -2,10 +2,18 @@ require 'rubygems'
 require 'rake'
 require 'rake/testtask'
 
+begin
+  gem 'rspec'
+  require 'spec/rake/spectask'
+  require 'spec/translator'
+  require 'spec/rake/spectask'
+rescue Object => e
+end
+
 Dir["#{File.dirname(__FILE__)}/lib/tasks/**/*.rake"].sort.each { |ext| load ext }
 
 desc "Default Task"
-task :default => [:test]
+#task :default => [:test]
 
 desc 'Runs the tests'
 task :test do
@@ -17,6 +25,26 @@ task :test do
   Rake::Task["test:migrate"].invoke
   Rake::Task[:test_units].invoke
 end
+
+if Object.const_defined?(:Spec)
+  desc "Run all specs"
+  Spec::Rake::SpecTask.new(:spec) do |t|
+    t.spec_opts = ['--options', "\"#{File.dirname(__FILE__)}/spec/spec.opts\""]
+    t.spec_files = FileList['spec/**/*_spec.rb']
+  end
+else
+  task :spec do
+    puts
+    puts "WARNING: Specs not run. To run acts_as_solr specs, you need to install the rspec gem"
+    puts
+  end
+end
+
+
+desc "Run all the tests and specs"
+task :spec_and_test => [:test, :spec]
+
+task :default => [:spec_and_test]
 
 desc "Unit Tests"
  Rake::TestTask.new('test_units') do |t|

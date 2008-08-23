@@ -40,11 +40,8 @@ module ActsAsSolr #:nodoc:
 
       # iterate through the fields and add them to the document,
       configuration[:solr_fields].each do |field_name, options|
-        #field_type = configuration[:facets] && configuration[:facets].include?(field) ? :facet : :text
-        
         field_boost = options[:boost] || solr_configuration[:default_boost]
         field_type = get_solr_field_type(options[:type])
-        
         value = self.send("#{field_name}_for_solr")
         value = set_value_if_nil(field_type) if value.to_s == ""
         

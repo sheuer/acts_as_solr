@@ -2,6 +2,7 @@ require 'rubygems'
 require 'test/unit'
 require 'active_record'
 require 'active_record/fixtures'
+require 'mocha'
 
 RAILS_ROOT = File.dirname(__FILE__) unless defined? RAILS_ROOT
 RAILS_ENV  = 'test' unless defined? RAILS_ENV
