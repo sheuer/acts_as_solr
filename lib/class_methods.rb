@@ -98,7 +98,11 @@ module ActsAsSolr #:nodoc:
         docs = data.docs
         return SearchResults.new(:docs => [], :total => 0) if data.total == 0
         if options[:results_format] == :objects
-          docs.each{|doc| k = doc.fetch('id').to_s.split(':'); result << k[0].constantize.find_by_id(k[1])}
+          docs.each{|doc|
+            k = doc.fetch('id').to_s.split(':')
+            klass = k[0].constantize
+            result << klass.find(:first, :conditions => ["#{klass.primary_key} = ?", k[1]])
+          }
         elsif options[:results_format] == :ids
           docs.each{|doc| result << {"id"=>doc.values.pop.to_s}}
         end
