@@ -89,8 +89,8 @@ module ActsAsSolr #:nodoc:
     #                          Where the value of each array is as Model:instance_id
     # 
     def multi_solr_search(query, options = {})
-      models = "AND (#{solr_configuration[:type_field]}:#{self.name}"
-      options[:models].each{|m| models << " OR #{solr_configuration[:type_field]}:"+m.to_s} if options[:models].is_a?(Array)
+      models = "AND (#{solr_type_condition}"
+      options[:models].each{|m| models << " OR #{m.solr_type_condition}"} if options[:models].is_a?(Array)
       options.update(:results_format => :objects) unless options[:results_format]
       data = parse_query(query, options, models<<")")
       result = []
@@ -99,7 +99,8 @@ module ActsAsSolr #:nodoc:
         return SearchResults.new(:docs => [], :total => 0) if data.total == 0
         if options[:results_format] == :objects
           docs.each{|doc|
-            k = doc.fetch('id').to_s.split(':')
+            doc.fetch('id').to_s =~ /(.*):(.*)/
+            k = [$1, $2]
             klass = k[0].constantize
             result << klass.find(:first, :conditions => ["#{klass.primary_key} = ?", k[1]])
           }

@@ -23,8 +23,8 @@ class ActsAsSolrTest < Test::Unit::TestCase
   # Testing the multi_solr_search with multiple models
   def test_multi_solr_search_multiple_models
     records = Book.multi_solr_search "Napoleon OR Tom OR Thriller", :models => [Movie, Category], :results_format => :ids
-    assert_equal 4, records.total
-    [{"id" => "Category:1"}, {"id" =>"Book:1"}, {"id" => "Movie:1"}, {"id" =>"Book:3"}].each do |result|
+    assert_equal 5, records.total
+    [{"id" => "Category:1"}, {"id" =>"Book:1"}, {"id" => "Movie:1"}, {"id" =>"Book::Howto:3"}].each do |result|
       assert records.docs.include?(result)
     end
   end
@@ -43,4 +43,10 @@ class ActsAsSolrTest < Test::Unit::TestCase
     assert_equal "Blue Train", records.docs.first.name
   end
 
+  # Testing :: in class name
+  def test_subclass
+    records = Book.multi_solr_search "Plato", :results_format => :objects
+    assert_equal 1, records.total
+    assert_equal "Symposium", records.docs.first.name
+  end
 end

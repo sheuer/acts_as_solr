@@ -311,11 +311,11 @@ class ActsAsSolrTest < Test::Unit::TestCase
   def test_find_by_solr_with_score
     books = Book.find_by_solr 'ruby^10 OR splinter', :scores => true
     assert_equal 2, books.total
-    assert_equal 0.46934122, books.max_score
+    assert_equal 0.4472264, books.max_score
     
     books.records.each { |book| assert_not_nil book.solr_score }
-    assert_equal 0.46934122, books.docs.first.solr_score
-    assert_equal 0.17600295, books.docs.last.solr_score
+    assert_equal 0.4472264, books.docs.first.solr_score
+    assert_equal 0.13828711, books.docs.last.solr_score
   end
   
   # Making sure nothing breaks when html entities are inside
@@ -385,11 +385,11 @@ class ActsAsSolrTest < Test::Unit::TestCase
   def test_find_by_solr_order_by_score
     books = Book.find_by_solr 'ruby^10 OR splinter', {:scores => true, :order => 'score asc' }
     assert (books.docs.collect(&:solr_score).compact.size == books.docs.size), "Each book should have a score"
-    assert_equal 0.46934122, books.docs.last.solr_score
+    assert_equal 0.4472264, books.docs.last.solr_score
     
     books = Book.find_by_solr 'ruby^10 OR splinter', {:scores => true, :order => 'score desc' }
-    assert_equal 0.46934122, books.docs.first.solr_score
-    assert_equal 0.17600295, books.docs.last.solr_score
+    assert_equal 0.4472264, books.docs.first.solr_score
+    assert_equal 0.13828711, books.docs.last.solr_score
   end
   
   # Search based on fields with the :date format
