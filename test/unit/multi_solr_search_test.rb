@@ -49,4 +49,11 @@ class ActsAsSolrTest < Test::Unit::TestCase
     assert_equal 1, records.total
     assert_equal "Symposium", records.docs.first.name
   end
+
+  # Testing multi_solr_search with non-integer PK
+  def test_non_int_pk
+    records = Posting.multi_solr_search "ABC", :results_format => :objects
+    assert_equal 1, records.total
+    assert_equal "ABC-123", records.docs.first.guid
+  end
 end
