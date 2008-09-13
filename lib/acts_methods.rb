@@ -153,8 +153,8 @@ module ActsAsSolr #:nodoc:
             else value
           end
         rescue
-          value = ''
           logger.debug "There was a problem getting the value for the field '#{field}': #{$!}"
+          value = ''
         end
       end
     end
