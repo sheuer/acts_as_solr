@@ -56,7 +56,7 @@ module ActsAsSolr #:nodoc:
                
         ActsAsSolr::Post.execute(Solr::Request::Standard.new(query_options))
       rescue
-        raise "There was a problem executing your search: #{$!}"
+        raise "There was a problem executing your search: #{$!} in #{$!.backtrace.first}"
       end            
     end
     
@@ -99,11 +99,11 @@ module ActsAsSolr #:nodoc:
         :format => :objects
       }
       results.update(:facets => {'facet_fields' => []}) if options[:facets]
-      return SearchResults.new(results) if solr_data.total == 0
+      return SearchResults.new(results) if solr_data.total_hits == 0
       
       configuration.update(options) if options.is_a?(Hash)
 
-      ids = solr_data.docs.collect {|doc| doc["#{solr_configuration[:primary_key_field]}"]}.flatten
+      ids = solr_data.hits.collect {|doc| doc["#{solr_configuration[:primary_key_field]}"]}.flatten
       conditions = [ "#{self.table_name}.#{primary_key} in (?)", ids ]
       result = configuration[:format] == :objects ? reorder(self.find(:all, find_options.merge(:conditions => conditions)), ids) : ids
       add_scores(result, solr_data) if configuration[:format] == :objects && options[:scores]
@@ -125,22 +125,17 @@ module ActsAsSolr #:nodoc:
       end
       
       results.update(:facets => solr_data.data['facet_counts']) if options[:facets]
-      results.update({:docs => result, :total => solr_data.total, :max_score => solr_data.max_score, :query_time => solr_data.data['responseHeader']['QTime']})
+      results.update({:docs => result, :total => solr_data.total_hits, :max_score => solr_data.max_score, :query_time => solr_data.data['responseHeader']['QTime']})
       SearchResults.new(results)
     end
     
     # Reorders the instances keeping the order returned from Solr
     def reorder(things, ids)
-      ordered_things = []
-      ids.each do |id|
-        record = things.find {|thing| record_id(thing).to_s == id.to_s} 
-        if record
-          ordered_things << record
-        else
-          # this should fail silently?
-          # logger.error("SOLR index Out of sync! The id #{id} is in the Solr index but missing in the database!")
-          raise("Out of sync! The id #{id} is in the Solr index but missing in the database!")
-        end
+      ordered_things = Array.new(things.size)
+      raise "Out of sync! Found #{ids.size} items in index, but only #{things.size} were found in database!" unless things.size == ids.size
+      things.each do |thing|
+        position = ids.index(thing.id)
+        ordered_things[position] = thing
       end
       ordered_things
     end
@@ -194,7 +189,7 @@ module ActsAsSolr #:nodoc:
     # Adds the score to each one of the instances found
     def add_scores(results, solr_data)
       with_score = []
-      solr_data.docs.each do |doc|
+      solr_data.hits.each do |doc|
         with_score.push([doc["score"], 
           results.find {|record| record_id(record).to_s == doc["#{solr_configuration[:primary_key_field]}"].to_s }])
       end

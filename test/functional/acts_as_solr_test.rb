@@ -438,4 +438,10 @@ class ActsAsSolrTest < Test::Unit::TestCase
     Encyclopedia.acts_as_solr
     assert_equal "Novella: Something Short", Encyclopedia.new(:name => "Something Short").name_for_solr 
   end
+  
+  def test_should_not_index_the_record_when_offline_proc_returns_true
+    Gadget.search_disabled = true
+    gadget = Gadget.create(:name => "flipvideo mino")
+    assert_equal 0, Gadget.find_id_by_solr('flipvideo').total
+  end
 end

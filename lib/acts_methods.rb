@@ -75,12 +75,22 @@ module ActsAsSolr #:nodoc:
     #             acts_as_solr :facets => [:category, :manufacturer]  
     #           end
     # 
-    # boost:: You can pass a boost (float) value that will be used to boost the document and/or a field:
+    # boost:: You can pass a boost (float) value that will be used to boost the document and/or a field. To specify a more
+    #         boost for the document, you can either pass a block or a symbol. The block will be called with the record
+    #         as an argument, a symbol will result in the according method being called:
     # 
     #           class Electronic < ActiveRecord::Base
     #             acts_as_solr :fields => [{:price => {:boost => 5.0}}], :boost => 10.0
     #           end
     # 
+    #           class Electronic < ActiveRecord::Base
+    #             acts_as_solr :fields => [{:price => {:boost => 5.0}}], :boost => proc {|record| record.id + 120*37}
+    #           end
+    #
+    #           class Electronic < ActiveRecord::Base
+    #             acts_as_solr :fields => [{:price => {:boost => :price_rating}}], :boost => 10.0
+    #           end
+    #
     # if:: Only indexes the record if the condition evaluated is true. The argument has to be 
     #      either a symbol, string (to be eval'ed), proc/method, or class implementing a static 
     #      validation method. It behaves the same way as ActiveRecord's :if option.
@@ -89,6 +99,18 @@ module ActsAsSolr #:nodoc:
     #          acts_as_solr :if => proc{|record| record.is_active?}
     #        end
     # 
+    # offline:: Assumes that your using an outside mechanism to explicitly trigger indexing records, e.g. you only
+    #           want to update your index through some asynchronous mechanism. Will accept either a boolean or a block
+    #           that will be evaluated before actually contacting the index for saving or destroying a document. Defaults
+    #           to false. It doesn't refer to the mechanism of an offline index in general, but just to get a centralized point
+    #           where you can control indexing. Note: This is only enabled for saving records. acts_as_solr doesn't always like
+    #           it, if you have a different number of results coming from the database and the index. This might be rectified in
+    #           another patch to support lazy loading.
+    #
+    #             class Electronic < ActiveRecord::Base
+    #               acts_as_solr :offline => proc {|record| record.automatic_indexing_disabled?}
+    #             end
+    #
     # auto_commit:: The commit command will be sent to Solr only if its value is set to true:
     # 
     #                 class Author < ActiveRecord::Base
@@ -114,7 +136,8 @@ module ActsAsSolr #:nodoc:
         :include => nil,
         :facets => nil,
         :boost => nil,
-        :if => "true"
+        :if => "true",
+        :offline => false
       }  
       
       self.solr_configuration = {

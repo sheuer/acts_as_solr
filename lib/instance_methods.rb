@@ -9,8 +9,8 @@ module ActsAsSolr #:nodoc:
 
     # saves to the Solr index
     def solr_save
-      return true unless configuration[:if] 
-      if evaluate_condition(configuration[:if], self) 
+      return true if indexing_disabled?
+      if evaluate_condition(:if, self) 
         logger.debug "solr_save: #{self.class.name} : #{record_id(self)}"
         solr_add to_solr_doc
         solr_commit if configuration[:auto_commit]
@@ -18,6 +18,10 @@ module ActsAsSolr #:nodoc:
       else
         solr_destroy
       end
+    end
+
+    def indexing_disabled?
+      evaluate_condition(:offline, self) || !configuration[:if]
     end
 
     # remove from index
@@ -65,8 +69,7 @@ module ActsAsSolr #:nodoc:
       end
       
       add_includes(doc) if configuration[:include]
-      logger.debug doc.to_xml.to_s
-      return doc
+      doc
     end
     
     private
@@ -94,28 +97,39 @@ module ActsAsSolr #:nodoc:
     end
     
     def validate_boost(boost)
-      if boost.class != Float || boost < 0
-        logger.warn "The boost value has to be a float and posisive, but got #{boost}. Using default boost value."
-        return solr_configuration[:default_boost]
+      boost_value = case boost
+      when Float:
+        return solr_configuration[:default_boost] if boost < 0
+        boost
+      when Proc:
+        boost.call(self)
+      when Symbol:
+        if self.respond_to?(boost)
+          self.send(boost)
+        end
       end
-      boost
+      
+      boost_value || solr_configuration[:default_boost]
     end
     
     def condition_block?(condition)
       condition.respond_to?("call") && (condition.arity == 1 || condition.arity == -1)
     end
     
-    def evaluate_condition(condition, field)
+    def evaluate_condition(which_condition, field)
+      condition = configuration[which_condition]
       case condition
         when Symbol: field.send(condition)
         when String: eval(condition, binding)
+        when FalseClass, NilClass: false
+        when TrueClass: true
         else
           if condition_block?(condition)
             condition.call(field)
           else
             raise(
               ArgumentError,
-              "The :if option has to be either a symbol, string (to be eval'ed), proc/method, or " +
+              "The :#{which_condition} option has to be either a symbol, string (to be eval'ed), proc/method, true/false, or " +
               "class implementing a static validation method"
             )
           end
