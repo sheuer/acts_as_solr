@@ -160,6 +160,9 @@ module ActsAsSolr #:nodoc:
             when :date: value ? value.to_time.utc.strftime("%Y-%m-%dT%H:%M:%SZ") : nil 
             else value
           end
+        rescue
+          logger.debug "There was a problem getting the value for the field '#{field}': #{$!}"
+          value = ''
         end
       end
     end
