@@ -176,16 +176,18 @@ module ActsAsSolr #:nodoc:
       
       unless instance_methods.include?("#{field_name}_for_solr")
         define_method("#{field_name}_for_solr".to_sym) do
-          value = self.send(field_name.to_sym)
+          begin
+            value = self.send(field_name.to_sym)
 
-          case options.last[:type] 
-            # format dates properly; return nil for nil dates 
-            when :date: value ? value.to_time.utc.strftime("%Y-%m-%dT%H:%M:%SZ") : nil 
-            else value
+            case options.last[:type] 
+              # format dates properly; return nil for nil dates 
+              when :date: value ? value.to_time.utc.strftime("%Y-%m-%dT%H:%M:%SZ") : nil 
+              else value
+            end
+          rescue
+            logger.debug "There was a problem getting the value for the field '#{field}': #{$!}"
+            value = ''
           end
-        rescue
-          logger.debug "There was a problem getting the value for the field '#{field}': #{$!}"
-          value = ''
         end
       end
     end
